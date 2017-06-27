@@ -17,6 +17,7 @@ from escapism import escape
 from jupyterhub.spawner import Spawner
 from traitlets import (
     Dict,
+    List,
     Unicode,
     Bool,
     Int,
@@ -155,6 +156,7 @@ class DockerSpawner(Spawner):
     extra_create_kwargs = Dict(config=True, help="Additional args to pass for container create")
     extra_start_kwargs = Dict(config=True, help="Additional args to pass for container start")
     extra_host_config = Dict(config=True, help="Additional args to create_host_config for container create")
+    extra_networks = List(config=True, help="Additional networks to attach to running containers")
 
     _container_safe_chars = set(string.ascii_letters + string.digits + '-')
     _container_escape_char = '_'
@@ -456,6 +458,14 @@ class DockerSpawner(Spawner):
 
         # start the container
         yield self.docker('start', self.container_id, **start_kwargs)
+        self.log.info('Adding new networks')
+        if self.extra_networks:
+            for network in self.extra_networks: 
+                self.client.connect_container_to_network(self.container_id, network)
+                self.log.info(
+                    "Connecting container '%s' to network '%s')",
+                     self.container_name, network
+                )
 
         ip, port = yield self.get_ip_and_port()
         # store on user for pre-jupyterhub-0.7:
